@@ -289,7 +289,7 @@ Background.prototype.duration = function(end, start) {
   */
 };
 
-var notes = SONG.Hard.notes;
+var notes = SONG.Hard.notes.slice();
 var origin;
 var alive = [];
 var points = 0;
@@ -312,22 +312,19 @@ function run(now) {
   }
 }
 
-function init(now) {
-  var songDelay = Math.max(0, -notes[0].t);
-  setTimeout(function() {
-    console.log('Start!'); // TODO start the music here
-  }, songDelay);
-  origin = now + songDelay;
-  background = new Background();
+$(function() {
   $('#playfield').css({
     left: Target.prototype.RADIUS,
     right: Target.prototype.RADIUS
   });
+  background = new Background();
+  var songDelay = Math.max(0, -notes[0].t);
+  // TODO load the music here
+  origin = performance.now() + songDelay;
+  setTimeout(function() {
+    console.log('Start!'); // TODO start the music here
+  }, songDelay);
   requestAnimationFrame(run);
-}
-
-$(function() {
-  requestAnimationFrame(init);
 });
 
 function pulsate(now) {
