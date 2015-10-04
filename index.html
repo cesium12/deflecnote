@@ -1,0 +1,364 @@
+<!doctype html>
+<html>
+<head>
+  <title>DeflecNote</title>
+  <script src="jquery.min.js"></script>
+  <script src="test.js"></script>
+  <style>
+body {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: black;
+  margin: 0;
+}
+
+body > * {
+  position: absolute;
+}
+
+#playfield {
+  top: 15%;
+  bottom: 15%;
+}
+
+.p1 {
+  color: magenta;
+  background-color: magenta;
+}
+
+.p2 {
+  color: cyan;
+  background-color: cyan;
+}
+
+.glowy {
+  height: 10%;
+  width: 100%;
+  background-image: linear-gradient(to bottom, black, black);
+}
+
+.glowy.p1 {
+  bottom: 10%;
+}
+
+.glowy.p2 {
+  top: 10%;
+}
+
+.target {
+  position: absolute;
+  border-radius: 50%;
+  border: 5px outset silver;
+}
+
+.target.p1 {
+  box-shadow: 0 0 1em magenta, 0 0 1em magenta;
+}
+
+.target.p2 {
+  box-shadow: 0 0 1em cyan, 0 0 1em cyan;
+}
+
+.target.highlight {
+  border-color: goldenrod;
+}
+
+.target.clickable {
+  cursor: pointer;
+}
+
+.score {
+  background-color: black;
+}
+
+.score.p1 {
+  right: 0;
+}
+
+.score.p2 {
+  left: 0;
+}
+  </style>
+</head>
+<body>
+  <section class="score p1"></section>
+  <section class="glowy p2"></section>
+  <section class="glowy p1"></section>
+  <canvas id="background"></canvas>
+  <section id="playfield"></section>
+  <script>
+function copyProperties(to, from, keys) {
+  if (!keys) {
+    return Object.assign(to, from);
+  }
+  $.each(keys, function(_, key) {
+    if (key in from) {
+      to[key] = from[key];
+    }
+  });
+  return to;
+}
+
+function Target(base, link) {
+  copyProperties(this, base);
+  var self = this;
+
+  if (link) {
+    this.t += link.delay
+    this.t_final += link.delay;
+    this.duration = link.duration;
+    delete this.linked;
+    delete this.reflect;
+  }
+  this.duration = this.duration || 0;
+  this.parent = base;
+  console.log(this);
+
+  this.elt = $('<div>').addClass('target')
+      .addClass(this.top ? 'p1' : 'p2')
+      .mousedown(this.tap.bind(this))
+      .css({
+        height: 2 * this.RADIUS,
+        width: 2 * this.RADIUS,
+        margin: -(this.RADIUS + 5)
+      })
+      .appendTo('#playfield')
+      .fadeOut(0)
+      .fadeIn(this.reflected ? 0 : this.FADE_TIME);
+
+  var simultaneous = $();
+  $.each(alive, function(_, note) {
+    $.each(note.targets, function(_, target) {
+      if (target.t_final == self.t_final) {
+        simultaneous = simultaneous.add(target.elt);
+      }
+    });
+  });
+  if (simultaneous.length > 0) {
+    simultaneous.add(this.elt).addClass('highlight');
+  }
+
+  if (this.v_x == 0) {
+    this.lastBounce = this.t;
+  } else {
+    var final = this.positionAt(this.t_final);
+    this.lastBounce = Math.max(this.t, this.t_final -
+        (final.v_x > 0 ? final.x : (final.x - 1)) * 1000 / final.v_x);
+  }
+}
+Target.prototype.FADE_TIME = 250;
+Target.prototype.RADIUS = 20;
+Target.prototype.positionAt = function(now) {
+  // TODO insets
+  var yProgress = (now - this.t) / (this.t_final - this.t);
+  var y = this.top ? yProgress : (1 - yProgress);
+  var xProgress = ((this.x + this.v_x * (now - this.t) / 1000) % 2 + 2) % 2;
+  var x = 1 - Math.abs(xProgress - 1);
+  var v_x = xProgress < 1 ? this.v_x : -this.v_x;
+  return {y: y, x: x, v_x: v_x};
+};
+Target.prototype.step = function(now) {
+  var result = this.positionAt(now);
+  if (this.duration && now >= this.t_final) {
+    if (now >= this.t_final + this.duration) {
+      result = this.positionAt(now - this.duration);
+    } else {
+      result = this.positionAt(this.t_final);
+    }
+  }
+  this.elt.css({
+    top: 100 * result.y + '%',
+    left: 100 * result.x + '%'
+  }).toggleClass('clickable',
+      this.top && !this.dying && Math.abs(result.y - 1) < 0.05);
+
+  if (this.duration) {
+    background.duration(result,
+        this.positionAt(Math.max(this.lastBounce, now - this.duration)));
+  }
+
+  if (now >= this.t_final && this.reflect) {
+    var hit = this.positionAt(this.t_final);
+    var reflect = {
+      x: result.x,
+      top: !this.top,
+      t: this.t_final,
+      v_x: result.v_x,
+      t_final: this.t_final + this.reflect.delay,
+      reflected: true
+    };
+    copyProperties(reflect, this, ['inset_x', 'duration', 'linked']);
+    copyProperties(reflect, this.reflect, ['v_x', 'duration', 'reflect']);
+    notes.unshift(reflect);
+    delete this.reflect;
+  }
+
+  // TODO non-inset notes don't fade out, they hit the bottom of the screen
+  var threshold = this.t_final + this.duration;
+  if (now >= threshold + this.FADE_TIME) {
+    this.elt.css('opacity',
+        (threshold + 2 * this.FADE_TIME - now) / this.FADE_TIME);
+    this.dying = true;
+  }
+  if (now >= threshold + 2 * this.FADE_TIME) {
+    this.elt.remove();
+    return false;
+  }
+  return true;
+};
+Target.prototype.tap = function() {
+  if (!this.elt.hasClass('clickable')) {
+    return;
+  }
+  this.dying = true;
+  this.elt.hide();
+  // TODO flash and hide the note. separate flash and hide for duration.
+  $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
+  // TODO score duration notes correctly
+};
+
+function Note(data) {
+  copyProperties(this, data);
+  var self = this;
+
+  this.targets = [new Target(this)];
+  $.each(this.linked || [], function(_, link) {
+    setTimeout(function() {
+      self.targets.push(new Target(self, link));
+    }, link.delay);
+  });
+}
+Note.prototype.step = function(now) {
+  /* TODO Okay, let's scrap the whole concept of dying notes. A linked note
+          stays alive along with all of its targets until they're all off
+          screen. EXCEPT that a tapped note dies immediately (or, after the
+          flash animation). Draw links with the opacity of the first note. */
+  background.link($.grep(this.targets, function(target) {
+    return !target.dying;
+  }));
+  this.targets = $.grep(this.targets, function(target) {
+    return target.step(now);
+  });
+  return this.targets.length > 0;
+};
+
+function Background() {
+  this.canvas = $('#background')[0];
+  this.playfield = $('#playfield');
+  this.ctx = this.canvas.getContext('2d');
+  $(window).resize(this.resize.bind(this)).resize();
+}
+Background.prototype.resize = function() {
+  this.canvas.height = $(window).height();
+  this.canvas.width = $(window).width();
+};
+Background.prototype.clear = function() {
+  this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+};
+Background.prototype.link = function(targets) {
+  if (targets.length <= 1) {
+    return;
+  };
+
+  this.ctx.lineWidth = 5;
+  this.ctx.strokeStyle = 'silver';
+  this.ctx.shadowColor = 'silver';
+  this.ctx.globalAlpha = 1;
+
+  this.ctx.beginPath();
+  var offset = this.playfield.offset();
+  var position = targets[0].elt.position();
+  this.ctx.moveTo(position.left + offset.left, position.top + offset.top);
+  for (var i = 1; i < targets.length; ++i) {
+    position = targets[i].elt.position();
+    this.ctx.lineTo(position.left + offset.left, position.top + offset.top);
+  }
+  this.ctx.stroke();
+};
+Background.prototype.duration = function(end, start) {
+  /* TODO
+  this.ctx.lineWidth = 2 * (Target.prototype.RADIUS + 5);
+  this.ctx.strokeStyle = 'magenta';
+  this.ctx.shadowColor = 'magenta';
+  this.ctx.shadowBlur = 50;
+  this.ctx.globalAlpha = 0.5;
+  this.ctx.lineCap = 'round';
+  */
+};
+
+var notes = SONG.Hard.notes;
+var origin;
+var alive = [];
+var points = 0;
+var background;
+
+function run(now) {
+  now -= origin;
+  background.clear();
+  pulsate(now);
+  while (notes.length && now >= notes[0].t) {
+    alive.push(new Note(notes.shift()));
+  }
+  alive = $.grep(alive, function(note) {
+    return note.step(now);
+  });
+  if (alive.length || notes.length) {
+    requestAnimationFrame(run);
+  } else {
+    console.log('Done!'); // TODO what about when the music ends
+  }
+}
+
+function init(now) {
+  var songDelay = Math.max(0, -notes[0].t);
+  setTimeout(function() {
+    console.log('Start!'); // TODO start the music here
+  }, songDelay);
+  origin = now + songDelay;
+  background = new Background();
+  $('#playfield').css({
+    left: Target.prototype.RADIUS,
+    right: Target.prototype.RADIUS
+  });
+  requestAnimationFrame(run);
+}
+
+$(function() {
+  requestAnimationFrame(init);
+});
+
+function pulsate(now) {
+  var bpm = SONG._metadata.bpm;
+  for (var i = 0; i < bpm.length; ++i) {
+    if (bpm[i][0] > now) {
+      break;
+    }
+  }
+  var current = bpm[Math.max(0, i - 1)];
+  var phase = (now - current[0]) * current[1] / (60 * 1000);
+  background.ctx.shadowBlur = 15 + 5 * Math.cos((phase - 4/8) * 2 * Math.PI);
+  $('.glowy').css('background-image', 'linear-gradient(to bottom,' +
+      'rgba(0, 0, 0, 1) 0%,' +
+      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 10%,' +
+      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 20%,' +
+      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 30%,' +
+      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 40%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 50%,' +
+      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 60%,' +
+      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 70%,' +
+      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 80%,' +
+      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 90%,' +
+      'rgba(0, 0, 0, 1) 100%)');
+  $('.target').css('background-image', 'radial-gradient(circle,' +
+      'rgba(0, 0, 0, ' + (0.10 + 0.05 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 0%,' +
+      'rgba(0, 0, 0, ' + (0.15 + 0.10 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 40%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.10 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 70%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.15 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 90%,' +
+      'rgba(0, 0, 0, ' + (0.25 + 0.15 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 100%)');
+}
+  </script>
+</body>
+</html>
