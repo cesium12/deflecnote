@@ -94,6 +94,7 @@ function copyProperties(to, from, keys) {
   if (!keys) {
     return Object.assign(to, from);
   }
+  // TODO is this necessary anymore?
   $.each(keys, function(_, key) {
     if (key in from) {
       to[key] = from[key];
@@ -107,13 +108,12 @@ function Target(base, link) {
   var self = this;
 
   if (link) {
-    this.t += link.delay
     this.t_final += link.delay;
     this.duration = link.duration;
-    delete this.linked;
-    delete this.reflect;
+    this.duration_spd = link.duration_spd;
   }
   this.duration = this.duration || 0;
+  this.duration_spd = this.duration_spd || 1;
   this.parent = base;
   console.log(this);
 
@@ -123,11 +123,10 @@ function Target(base, link) {
       .css({
         height: 2 * this.RADIUS,
         width: 2 * this.RADIUS,
-        margin: -(this.RADIUS + 5)
+        margin: -(this.RADIUS + 5),
+        opacity: 0
       })
-      .appendTo('#playfield')
-      .fadeOut(0)
-      .fadeIn(this.reflected ? 0 : this.FADE_TIME);
+      .appendTo('#playfield');
 
   var simultaneous = $();
   $.each(alive, function(_, note) {
@@ -146,21 +145,21 @@ function Target(base, link) {
   } else {
     var final = this.positionAt(this.t_final);
     this.lastBounce = Math.max(this.t, this.t_final -
-        (final.v_x > 0 ? final.x : (final.x - 1)) * 1000 / final.v_x);
+        (final.v_x > 0 ? final.x : (final.x - 1)) / final.v_x);
   }
 }
-Target.prototype.FADE_TIME = 250;
 Target.prototype.RADIUS = 20;
 Target.prototype.positionAt = function(now) {
   // TODO insets
   var yProgress = (now - this.t) / (this.t_final - this.t);
   var y = this.top ? yProgress : (1 - yProgress);
-  var xProgress = ((this.x + this.v_x * (now - this.t) / 1000) % 2 + 2) % 2;
+  var xProgress = ((this.x + this.v_x * (now - this.t)) % 2 + 2) % 2;
   var x = 1 - Math.abs(xProgress - 1);
   var v_x = xProgress < 1 ? this.v_x : -this.v_x;
   return {y: y, x: x, v_x: v_x};
 };
 Target.prototype.step = function(now) {
+  // TODO rewrite this function
   var result = this.positionAt(now);
   if (this.duration && now >= this.t_final) {
     if (now >= this.t_final + this.duration) {
@@ -180,22 +179,6 @@ Target.prototype.step = function(now) {
         this.positionAt(Math.max(this.lastBounce, now - this.duration)));
   }
 
-  if (now >= this.t_final && this.reflect) {
-    var hit = this.positionAt(this.t_final);
-    var reflect = {
-      x: result.x,
-      top: !this.top,
-      t: this.t_final,
-      v_x: result.v_x,
-      t_final: this.t_final + this.reflect.delay,
-      reflected: true
-    };
-    copyProperties(reflect, this, ['inset_x', 'duration', 'linked']);
-    copyProperties(reflect, this.reflect, ['v_x', 'duration', 'reflect']);
-    notes.unshift(reflect);
-    delete this.reflect;
-  }
-
   // TODO non-inset notes don't fade out, they hit the bottom of the screen
   var threshold = this.t_final + this.duration;
   if (now >= threshold + this.FADE_TIME) {
@@ -207,14 +190,16 @@ Target.prototype.step = function(now) {
     this.elt.remove();
     return false;
   }
+
+  // TODO return false when off screen
   return true;
 };
 Target.prototype.tap = function() {
   if (!this.elt.hasClass('clickable')) {
     return;
   }
-  this.dying = true;
-  this.elt.hide();
+  this.tapped = true;
+  this.elt.remove();
   // TODO flash and hide the note. separate flash and hide for duration.
   $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
   // TODO score duration notes correctly
@@ -226,9 +211,7 @@ function Note(data) {
 
   this.targets = [new Target(this)];
   $.each(this.linked || [], function(_, link) {
-    setTimeout(function() {
-      self.targets.push(new Target(self, link));
-    }, link.delay);
+    self.targets.push(new Target(self, link));
   });
 }
 Note.prototype.step = function(now) {
@@ -236,13 +219,14 @@ Note.prototype.step = function(now) {
           stays alive along with all of its targets until they're all off
           screen. EXCEPT that a tapped note dies immediately (or, after the
           flash animation). Draw links with the opacity of the first note. */
-  background.link($.grep(this.targets, function(target) {
-    return !target.dying;
-  }));
-  this.targets = $.grep(this.targets, function(target) {
-    return target.step(now);
+  var alive = false;
+  $.each(this.targets, function(_, target) {
+    alive = target.step(now) || alive;
   });
-  return this.targets.length > 0;
+  background.link($.grep(this.targets, function(target) {
+    return !target.tapped;
+  });
+  return alive;
 };
 
 function Background() {
@@ -329,13 +313,12 @@ $(function() {
 
 function pulsate(now) {
   var bpm = SONG._metadata.bpm;
-  for (var i = 0; i < bpm.length; ++i) {
+  for (var i = 1; i < bpm.length; ++i) {
     if (bpm[i][0] > now) {
       break;
     }
   }
-  var current = bpm[Math.max(0, i - 1)];
-  var phase = (now - current[0]) * current[1] / (60 * 1000);
+  var phase = (now - bpm[i][0]) * bpm[i][1] / (60 * 1000);
   background.ctx.shadowBlur = 15 + 5 * Math.cos((phase - 4/8) * 2 * Math.PI);
   $('.glowy').css('background-image', 'linear-gradient(to bottom,' +
       'rgba(0, 0, 0, 1) 0%,' +
