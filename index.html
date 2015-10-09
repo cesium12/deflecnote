@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
 <head>
+  <!-- TODO add a meta tag for device scale -->
   <title>DeflecNote</title>
   <script src="jquery.min.js"></script>
   <script src="test.js"></script>
@@ -90,17 +91,22 @@ body > * {
   <canvas id="background"></canvas>
   <section id="playfield"></section>
   <script>
+"use strict";
+
 function Target(base, link) {
   Object.assign(this, base);
   var self = this;
 
   if (link) {
+    if (!this.is_reflect) {
+      this.t += link.delay;
+    }
     this.t_final += link.delay;
     this.duration = link.duration;
     this.duration_spd = link.duration_spd;
   }
   this.spawn_y = this.is_reflect ? 0 : 0.05;
-  this.spawn_t = this.spawn_y * (base.t_final - base.t);
+  this.spawn_t = this.spawn_y * (this.t_final - this.t);
   this.duration = this.duration || 0;
   this.duration_spd = this.duration_spd || 1;
   this.parent = base;
@@ -119,6 +125,7 @@ function Target(base, link) {
         opacity: 0
       })
       .appendTo('#playfield');
+  this.color = this.elt.css('background-color');
 
   var simultaneous = $();
   $.each(alive, function(_, note) {
@@ -148,9 +155,15 @@ Target.prototype.positionAt = function(now) {
   var yProgress = this.spawn_y + (yFinal - this.spawn_y) *
       (tEffective - tStart) / (this.t_final - tStart);
   var y = this.top ? yProgress : (1 - yProgress);
-  var xProgress = ((this.x + this.v_x * (tEffective - this.t)) % 2 + 2) % 2;
-  var x = 1 - Math.abs(xProgress - 1);
-  var v_x = xProgress < 1 ? this.v_x : -this.v_x;
+  if (tEffective > this.t_final) {
+    var final = this.positionAt(this.t_final);
+    var x = final.x + final.v_x * (tEffective - this.t_final);
+    var v_x = final.v_x;
+  } else {
+    var xProgress = ((this.x + this.v_x * (tEffective - this.t)) % 2 + 2) % 2;
+    var x = 1 - Math.abs(xProgress - 1);
+    var v_x = xProgress < 1 ? this.v_x : -this.v_x;
+  }
   return {y: y, x: x, v_x: v_x};
 };
 Target.prototype.step = function(now) {
@@ -158,34 +171,37 @@ Target.prototype.step = function(now) {
   if (now >= this.t_tap + this.duration) {
     this.end(now);
   }
-  this.opacity = Math.min(1, (now - this.t) / this.spawn_t);
+  this.opacity = Math.min(1, Math.max(0, (now - this.t) / this.spawn_t));
   this.elt.css('opacity', this.opacity);
 
   var t_tap = 't_tap' in this ? this.t_tap : now;
   var t_out = 't_out' in this ? this.t_out : now;
   var position = this.positionAt(t_tap + now - t_out);
+  var end = position;
   this.elt.css({
     top: 100 * position.y + '%',
     left: 100 * position.x + '%'
-  }).toggleClass('clickable', this.top && Math.abs(result.y - 1) < 0.05);
+  }).toggleClass('clickable', this.top && Math.abs(position.y - 1) < 0.05);
 
   if (this.duration) {
     var tail = (t_out - t_tap - this.duration) * this.duration_spd +
         t_tap + now - t_out;
-    background.duration(position, this.positionAt(
-        Math.min(now, Math.max(this.lastBounce, tail))));
+    end = this.positionAt(Math.min(now, Math.max(this.lastBounce, tail)));
+    background.duration(this.color, position, end);
   }
 
-  return Math.abs(0.5 - position.y) < 1;
+  return Math.abs(0.5 - end.y) < 1;
 };
-Target.prototype.tap = function() {
+Target.prototype.tap = function(evt) {
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
-    this.t_tap = performance.now();
+    this.t_tap = performance.now() - origin;
     // TODO brighten the note
   }
+  evt.preventDefault();
 };
-Target.prototype.out = function() {
-  this.end(performance.now());
+Target.prototype.out = function(evt) {
+  this.end(performance.now() - origin);
+  evt.preventDefault();
 };
 Target.prototype.end = function(now) {
   if ('t_tap' in this && !('t_out' in this)) {
@@ -216,7 +232,7 @@ Note.prototype.step = function(now) {
     return !target.done;
   });
   if (this.targets.length > 1 && this.targets[0].opacity == 1) {
-    background.link(this.targets);
+    background.link(this.targets[0].color, this.targets);
   }
   return alive;
 };
@@ -230,20 +246,21 @@ function Background() {
 Background.prototype.resize = function() {
   this.canvas.height = $(window).height();
   this.canvas.width = $(window).width();
+  this.ctx.shadowColor = 'white';
+  this.ctx.lineCap = 'round';
 };
 Background.prototype.clear = function() {
   this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 };
-Background.prototype.link = function(targets) {
-  // TODO does this need fixing?
+Background.prototype.link = function(color, targets) {
   this.ctx.lineWidth = 5;
-  this.ctx.strokeStyle = 'silver';
-  this.ctx.shadowColor = 'silver';
+  this.ctx.strokeStyle = color;
   this.ctx.globalAlpha = 1;
 
-  this.ctx.beginPath();
   var offset = this.playfield.offset();
   var position = targets[0].elt.position();
+
+  this.ctx.beginPath();
   this.ctx.moveTo(position.left + offset.left, position.top + offset.top);
   for (var i = 1; i < targets.length; ++i) {
     position = targets[i].elt.position();
@@ -251,15 +268,19 @@ Background.prototype.link = function(targets) {
   }
   this.ctx.stroke();
 };
-Background.prototype.duration = function(end, start) {
-  /* TODO
+Background.prototype.duration = function(color, start, end) {
   this.ctx.lineWidth = 2 * (Target.prototype.RADIUS + 5);
-  this.ctx.strokeStyle = 'magenta';
-  this.ctx.shadowColor = 'magenta';
-  this.ctx.shadowBlur = 50;
+  this.ctx.strokeStyle = color;
   this.ctx.globalAlpha = 0.5;
-  this.ctx.lineCap = 'round';
-  */
+
+  var offset = this.playfield.offset();
+  var width = this.playfield.width();
+  var height = this.playfield.height();
+
+  this.ctx.beginPath();
+  this.ctx.moveTo(start.x * width + offset.left, start.y * height + offset.top);
+  this.ctx.lineTo(end.x * width + offset.left, end.y * height + offset.top);
+  this.ctx.stroke();
 };
 
 var notes = SONG.Hard.notes.slice();
@@ -307,7 +328,7 @@ function pulsate(now) {
       break;
     }
   }
-  var phase = (now - bpm[i][0]) * bpm[i][1] / (60 * 1000);
+  var phase = (now - bpm[i-1][0]) * bpm[i-1][1] / (60 * 1000);
   background.ctx.shadowBlur = 15 + 5 * Math.cos((phase - 4/8) * 2 * Math.PI);
   $('.glowy').css('background-image', 'linear-gradient(to bottom,' +
       'rgba(0, 0, 0, 1) 0%,' +
