@@ -90,21 +90,8 @@ body > * {
   <canvas id="background"></canvas>
   <section id="playfield"></section>
   <script>
-function copyProperties(to, from, keys) {
-  if (!keys) {
-    return Object.assign(to, from);
-  }
-  // TODO is this necessary anymore?
-  $.each(keys, function(_, key) {
-    if (key in from) {
-      to[key] = from[key];
-    }
-  });
-  return to;
-}
-
 function Target(base, link) {
-  copyProperties(this, base);
+  Object.assign(this, base);
   var self = this;
 
   if (link) {
@@ -112,6 +99,8 @@ function Target(base, link) {
     this.duration = link.duration;
     this.duration_spd = link.duration_spd;
   }
+  this.spawn_y = this.is_reflect ? 0 : 0.05;
+  this.spawn_t = this.spawn_y * (base.t_final - base.t);
   this.duration = this.duration || 0;
   this.duration_spd = this.duration_spd || 1;
   this.parent = base;
@@ -120,6 +109,7 @@ function Target(base, link) {
   this.elt = $('<div>').addClass('target')
       .addClass(this.top ? 'p1' : 'p2')
       .mousedown(this.tap.bind(this))
+      .mouseup(this.out.bind(this))
       .css({
         height: 2 * this.RADIUS,
         width: 2 * this.RADIUS,
@@ -150,63 +140,66 @@ function Target(base, link) {
 }
 Target.prototype.RADIUS = 20;
 Target.prototype.positionAt = function(now) {
-  // TODO insets
-  var yProgress = (now - this.t) / (this.t_final - this.t);
+  var tStart = this.t + this.spawn_t;
+  var tEffective = Math.max(tStart, now);
+  var yFinal = 1; // TODO insets
+  var yProgress = this.spawn_y + (yFinal - this.spawn_y) *
+      (tEffective - tStart) / (this.t_final - tStart);
   var y = this.top ? yProgress : (1 - yProgress);
-  var xProgress = ((this.x + this.v_x * (now - this.t)) % 2 + 2) % 2;
+  var xProgress = ((this.x + this.v_x * (tEffective - this.t)) % 2 + 2) % 2;
   var x = 1 - Math.abs(xProgress - 1);
   var v_x = xProgress < 1 ? this.v_x : -this.v_x;
   return {y: y, x: x, v_x: v_x};
 };
 Target.prototype.step = function(now) {
-  // TODO rewrite this function
-  var result = this.positionAt(now);
-  if (this.duration && now >= this.t_final) {
-    if (now >= this.t_final + this.duration) {
-      result = this.positionAt(now - this.duration);
-    } else {
-      result = this.positionAt(this.t_final);
-    }
+  // this function is black magic; don't worry about it too much
+  if (now >= this.t_tap + this.duration) {
+    this.end(now);
   }
+  this.opacity = Math.min(1, (now - this.t) / this.spawn_t);
+  this.elt.css('opacity', this.opacity);
+
+  var t_tap = 't_tap' in this ? this.t_tap : now;
+  var t_out = 't_out' in this ? this.t_out : now;
+  var position = this.positionAt(t_tap + now - t_out);
   this.elt.css({
-    top: 100 * result.y + '%',
-    left: 100 * result.x + '%'
-  }).toggleClass('clickable',
-      this.top && !this.dying && Math.abs(result.y - 1) < 0.05);
+    top: 100 * position.y + '%',
+    left: 100 * position.x + '%'
+  }).toggleClass('clickable', this.top && Math.abs(result.y - 1) < 0.05);
 
   if (this.duration) {
-    background.duration(result,
-        this.positionAt(Math.max(this.lastBounce, now - this.duration)));
+    var tail = (t_out - t_tap - this.duration) * this.duration_spd +
+        t_tap + now - t_out;
+    background.duration(position, this.positionAt(
+        Math.min(now, Math.max(this.lastBounce, tail))));
   }
 
-  // TODO non-inset notes don't fade out, they hit the bottom of the screen
-  var threshold = this.t_final + this.duration;
-  if (now >= threshold + this.FADE_TIME) {
-    this.elt.css('opacity',
-        (threshold + 2 * this.FADE_TIME - now) / this.FADE_TIME);
-    this.dying = true;
-  }
-  if (now >= threshold + 2 * this.FADE_TIME) {
-    this.elt.remove();
-    return false;
-  }
-
-  // TODO return false when off screen
-  return true;
+  return Math.abs(0.5 - position.y) < 1;
 };
 Target.prototype.tap = function() {
-  if (!this.elt.hasClass('clickable')) {
-    return;
+  if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
+    this.t_tap = performance.now();
+    // TODO brighten the note
   }
-  this.tapped = true;
-  this.elt.remove();
-  // TODO flash and hide the note. separate flash and hide for duration.
-  $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
-  // TODO score duration notes correctly
+};
+Target.prototype.out = function() {
+  this.end(performance.now());
+};
+Target.prototype.end = function(now) {
+  if ('t_tap' in this && !('t_out' in this)) {
+    if (now < this.t_tap + this.duration) {
+      this.t_out = now;
+    } else {
+      this.t_out = this.t_tap + this.duration;
+      this.done = true;
+      // TODO fade and hide / explode the note
+      $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
+    }
+  }
 };
 
 function Note(data) {
-  copyProperties(this, data);
+  Object.assign(this, data);
   var self = this;
 
   this.targets = [new Target(this)];
@@ -215,17 +208,14 @@ function Note(data) {
   });
 }
 Note.prototype.step = function(now) {
-  /* TODO Okay, let's scrap the whole concept of dying notes. A linked note
-          stays alive along with all of its targets until they're all off
-          screen. EXCEPT that a tapped note dies immediately (or, after the
-          flash animation). Draw links with the opacity of the first note. */
   var alive = false;
-  $.each(this.targets, function(_, target) {
+  this.targets = $.grep(this.targets, function(target) {
     alive = target.step(now) || alive;
+    return !target.done;
   });
-  background.link($.grep(this.targets, function(target) {
-    return !target.tapped;
-  });
+  if (this.targets.length > 1 && this.targets[0].opacity == 1) {
+    background.link(this.targets);
+  }
   return alive;
 };
 
@@ -243,10 +233,6 @@ Background.prototype.clear = function() {
   this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 };
 Background.prototype.link = function(targets) {
-  if (targets.length <= 1) {
-    return;
-  };
-
   this.ctx.lineWidth = 5;
   this.ctx.strokeStyle = 'silver';
   this.ctx.shadowColor = 'silver';
