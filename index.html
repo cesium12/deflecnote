@@ -108,8 +108,10 @@ function Target(base, link) {
 
   this.elt = $('<div>').addClass('target')
       .addClass(this.top ? 'p1' : 'p2')
+      // TODO make sure to cover all needed events
       .mousedown(this.tap.bind(this))
       .mouseup(this.out.bind(this))
+      .mouseout(this.out.bind(this))
       .css({
         height: 2 * this.RADIUS,
         width: 2 * this.RADIUS,
@@ -233,6 +235,7 @@ Background.prototype.clear = function() {
   this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 };
 Background.prototype.link = function(targets) {
+  // TODO does this need fixing?
   this.ctx.lineWidth = 5;
   this.ctx.strokeStyle = 'silver';
   this.ctx.shadowColor = 'silver';
