@@ -191,12 +191,15 @@ Target.prototype.step = function(now) {
     background.duration(this.color, position, end);
   }
 
-  return Math.abs(0.5 - end.y) < 1;
+  return Math.abs(end.y - 0.5) < 1;
 };
 Target.prototype.tap = function(evt) {
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
     this.t_tap = performance.now() - origin;
-    // TODO brighten the note
+    this.elt.animate({
+      borderWidth: 10,
+      margin: -(this.RADIUS + 10)
+    }, 100);
   }
   evt.preventDefault();
 };
@@ -211,7 +214,17 @@ Target.prototype.end = function(now) {
     } else {
       this.t_out = this.t_tap + this.duration;
       this.done = true;
-      // TODO fade and hide / explode the note
+      this.elt.animate({
+        opacity: 0
+      }, {
+        progress: function(_, current) {
+          $(this).css('transform', 'scale(' + (current / 5 + 1) + ')');
+        },
+        complete: function() {
+          $(this).remove();
+        },
+        duration: 100
+      });
       $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
     }
   }
@@ -234,6 +247,11 @@ Note.prototype.step = function(now) {
   });
   if (this.targets.length > 1 && this.targets[0].opacity == 1) {
     background.link(this.targets[0].color, this.targets);
+  }
+  if (!alive) {
+    $.each(this.targets, function(_, target) {
+      target.elt.remove();
+    });
   }
   return alive;
 };
