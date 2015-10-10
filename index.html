@@ -104,6 +104,7 @@ function Target(base, link) {
     this.t_final += link.delay;
     this.duration = link.duration;
     this.duration_spd = link.duration_spd;
+    this.link = link;
   }
   this.spawn_y = this.is_reflect ? 0 : 0.05;
   this.spawn_t = this.spawn_y * (this.t_final - this.t);
@@ -123,7 +124,7 @@ function Target(base, link) {
         margin: -(this.RADIUS + 5),
         opacity: 0
       })
-      .appendTo('#playfield');
+      .prependTo('#playfield');
   this.color = this.elt.css('background-color');
 
   var simultaneous = $();
@@ -170,7 +171,13 @@ Target.prototype.step = function(now) {
   if (now >= this.t_tap + this.duration) {
     this.end(now);
   }
-  this.opacity = Math.min(1, Math.max(0, (now - this.t) / this.spawn_t));
+  if (this.is_reflect || now >= this.parent.t + this.spawn_t) {
+    this.opacity = 1;
+  } else if (this.link) {
+    this.opacity = 0;
+  } else {
+    this.opacity = (now - this.t) / this.spawn_t;
+  }
   this.elt.css('opacity', this.opacity);
 
   var t_tap = 't_tap' in this ? this.t_tap : now;
@@ -233,7 +240,7 @@ Target.prototype.end = function(now) {
         complete: function() {
           $(this).remove();
         },
-        duration: 100
+        duration: 200
       });
       $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
     }
