@@ -351,22 +351,22 @@ function pulsate(now) {
   background.ctx.shadowBlur = 15 + 5 * Math.cos((phase - 4/8) * 2 * Math.PI);
   $('.glowy').css('background-image', 'linear-gradient(to bottom,' +
       'rgba(0, 0, 0, 1) 0%,' +
-      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 10%,' +
-      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 20%,' +
-      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 30%,' +
-      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 40%,' +
-      'rgba(0, 0, 0, ' + (0.20 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 50%,' +
-      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 60%,' +
-      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 70%,' +
-      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 80%,' +
-      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 90%,' +
+      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 10%,' +
+      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase + 1/8) * 2 * Math.PI)) + ') 20%,' +
+      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase + 2/8) * 2 * Math.PI)) + ') 30%,' +
+      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase + 3/8) * 2 * Math.PI)) + ') 40%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.1 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 50%,' +
+      'rgba(0, 0, 0, ' + (0.50 + 0.1 * Math.cos((phase + 3/8) * 2 * Math.PI)) + ') 60%,' +
+      'rgba(0, 0, 0, ' + (0.55 + 0.1 * Math.cos((phase + 2/8) * 2 * Math.PI)) + ') 70%,' +
+      'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase + 1/8) * 2 * Math.PI)) + ') 80%,' +
+      'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 90%,' +
       'rgba(0, 0, 0, 1) 100%)');
   $('.target').css('background-image', 'radial-gradient(circle,' +
-      'rgba(0, 0, 0, ' + (0.10 + 0.05 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 0%,' +
-      'rgba(0, 0, 0, ' + (0.15 + 0.10 * Math.cos((phase - 1/8) * 2 * Math.PI)) + ') 40%,' +
-      'rgba(0, 0, 0, ' + (0.20 + 0.10 * Math.cos((phase - 2/8) * 2 * Math.PI)) + ') 70%,' +
-      'rgba(0, 0, 0, ' + (0.20 + 0.15 * Math.cos((phase - 3/8) * 2 * Math.PI)) + ') 90%,' +
-      'rgba(0, 0, 0, ' + (0.25 + 0.15 * Math.cos((phase - 4/8) * 2 * Math.PI)) + ') 100%)');
+      'rgba(0, 0, 0, ' + (0.10 + 0.05 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 0%,' +
+      'rgba(0, 0, 0, ' + (0.15 + 0.10 * Math.cos((phase + 3/8) * 2 * Math.PI)) + ') 40%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.10 * Math.cos((phase + 2/8) * 2 * Math.PI)) + ') 70%,' +
+      'rgba(0, 0, 0, ' + (0.20 + 0.15 * Math.cos((phase + 1/8) * 2 * Math.PI)) + ') 90%,' +
+      'rgba(0, 0, 0, ' + (0.25 + 0.15 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 100%)');
 }
   </script>
 </body>
