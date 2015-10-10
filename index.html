@@ -119,14 +119,21 @@ function Target(base, link) {
       .on('mousedown touchstart', this.tap.bind(this))
       .on('mouseup touchend mouseleave', this.out.bind(this))
       .on('touchmove', this.move.bind(this))
-      .css({
-        height: 2 * this.RADIUS,
-        width: 2 * this.RADIUS,
-        margin: -(this.RADIUS + 5),
-        opacity: 0
-      })
+      .css(this.STYLE)
+      .css('opacity', 0)
       .prependTo('#playfield');
   this.color = this.elt.css('background-color');
+  if ('inset_x' in this) {
+    this.arrow = $('<div>').addClass('arrow').css({
+      borderTop: this.RADIUS * 0.8 - 1 + 'px solid transparent',
+      borderLeft: this.RADIUS * 1.6 - 4 + 'px solid ' + this.color,
+      borderBottom: this.RADIUS * 0.8 - 1 + 'px solid transparent',
+      marginLeft: this.RADIUS * 0.4 + 2,
+      marginTop: this.RADIUS * 0.2 + 1,
+      transformOrigin: (this.RADIUS * 0.6 - 2) + 'px ' +
+                       (this.RADIUS * 0.8 - 1) + 'px'
+    }).appendTo(this.elt.css('background-color', 'limegreen'));
+  }
 
   var simultaneous = $();
   $.each(alive, function(_, note) {
@@ -150,7 +157,13 @@ function Target(base, link) {
 }
 Target.prototype.RADIUS = 20;
 Target.prototype.INSET_Y = 0.75;
+Target.prototype.STYLE = {
+  height: 2 * Target.prototype.RADIUS,
+  width: 2 * Target.prototype.RADIUS,
+  margin: -(Target.prototype.RADIUS + 5)
+};
 Target.prototype.positionAt = function(now) {
+  // math. omg math. let's do some math
   var tStart = this.t + this.spawn_t;
   var tEffective = Math.max(tStart, now);
   var yProgress = this.spawn_y + (this.final_y - this.spawn_y) *
@@ -182,6 +195,11 @@ Target.prototype.step = function(now) {
     left: 100 * position.x + '%'
   }).toggleClass('clickable',
       this.top && Math.abs(position.y - this.final_y) < 0.05);
+  if ('inset_x' in this && position.yProgress < this.INSET_Y) {
+    this.arrow.css('transform', 'rotate(' + Math.atan2(
+        (this.top ? this.INSET_Y : (1 - this.INSET_Y)) - position.y,
+        (this.inset_x + 0.5) / insets - position.x) + 'rad)');
+  }
 
   if ('inset_x' in this && position.yProgress > this.INSET_Y + 0.05) {
     this.opacity = (1 - position.yProgress) / (1 - this.INSET_Y - 0.05);
@@ -330,10 +348,11 @@ Background.prototype.duration = function(target, start, end) {
 };
 
 var notes = SONG.Hard.notes.slice();
+var background;
+var insets;
 var origin;
 var alive = [];
 var points = 0;
-var background;
 
 function run(now) {
   now -= origin;
@@ -369,7 +388,26 @@ $(function() {
 });
 
 function insets() {
-  // TODO
+  insets = SONG.Hard.inset_targets;
+  for (var i = 0; i < insets; ++i) {
+    $.each({
+      p1: Target.prototype.INSET_Y,
+      p2: 1 - Target.prototype.INSET_Y
+    }, function(cls, y) {
+      var elt = $('<div>').addClass('target')
+          .addClass(cls)
+          .css(Target.prototype.STYLE)
+          .appendTo('#playfield');
+      elt.css({
+        top: 100 * y + '%',
+        left: 100 * (i + 0.5) / insets + '%',
+        backgroundColor: 'transparent',
+        boxShadow: 'inset 0 0 1em ' + elt.css('background-color'),
+        opacity: 0.5,
+        zIndex: -1
+      })
+    });
+  }
 }
 
 function pulsate(now) {
