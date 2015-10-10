@@ -225,10 +225,10 @@ Target.prototype.tap = function(evt) {
   evt.preventDefault();
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
     this.t_tap = performance.now() - origin;
-    this.elt.animate({
+    this.elt.css({
       borderWidth: 10,
       margin: -(this.RADIUS + 10)
-    }, 100);
+    });
   }
 };
 Target.prototype.out = function(evt) {
