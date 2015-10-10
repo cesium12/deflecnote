@@ -114,11 +114,9 @@ function Target(base, link) {
 
   this.elt = $('<div>').addClass('target')
       .addClass(this.top ? 'p1' : 'p2')
-      // TODO make sure to cover all needed events
-      // TODO long-tap doesn't dtrt on mobile
-      .mousedown(this.tap.bind(this))
-      .mouseup(this.out.bind(this))
-      .mouseout(this.out.bind(this))
+      .on('mousedown touchstart', this.tap.bind(this))
+      .on('mouseup touchend mouseleave', this.out.bind(this))
+      .on('touchmove', this.move.bind(this))
       .css({
         height: 2 * this.RADIUS,
         width: 2 * this.RADIUS,
@@ -194,6 +192,7 @@ Target.prototype.step = function(now) {
   return Math.abs(end.y - 0.5) < 1;
 };
 Target.prototype.tap = function(evt) {
+  evt.preventDefault();
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
     this.t_tap = performance.now() - origin;
     this.elt.animate({
@@ -201,11 +200,24 @@ Target.prototype.tap = function(evt) {
       margin: -(this.RADIUS + 10)
     }, 100);
   }
-  evt.preventDefault();
 };
 Target.prototype.out = function(evt) {
-  this.end(performance.now() - origin);
   evt.preventDefault();
+  this.end(performance.now() - origin);
+};
+Target.prototype.move = function(evt) {
+  evt.preventDefault();
+  var touches = evt.originalEvent.targetTouches;
+  var offset = $('#playfield').offset();
+  var position = this.elt.position();
+  for (var i = 0; i < touches.length; ++i) {
+    var touch = touches[i];
+    if (Math.abs(position.left + offset.left - touch.clientX) <= this.RADIUS &&
+        Math.abs(position.top + offset.top - touch.clientY) <= this.RADIUS) {
+      return;
+    }
+  }
+  this.out(evt);
 };
 Target.prototype.end = function(now) {
   if ('t_tap' in this && !('t_out' in this)) {
