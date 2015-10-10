@@ -208,12 +208,10 @@ Target.prototype.out = function(evt) {
 Target.prototype.move = function(evt) {
   evt.preventDefault();
   var touches = evt.originalEvent.targetTouches;
-  var offset = $('#playfield').offset();
-  var position = this.elt.position();
+  var offset = this.offset();
   for (var i = 0; i < touches.length; ++i) {
-    var touch = touches[i];
-    if (Math.abs(position.left + offset.left - touch.clientX) <= this.RADIUS &&
-        Math.abs(position.top + offset.top - touch.clientY) <= this.RADIUS) {
+    if (Math.abs(offset.left - touches[i].clientX) <= this.RADIUS &&
+        Math.abs(offset.top - touches[i].clientY) <= this.RADIUS) {
       return;
     }
   }
@@ -240,6 +238,14 @@ Target.prototype.end = function(now) {
       $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
     }
   }
+};
+Target.prototype.offset = function() {
+  var offset = $('#playfield').offset();
+  var position = this.elt.position();
+  return {
+    left: offset.left + position.left,
+    top: offset.top + position.top
+  };
 };
 
 function Note(data) {
@@ -270,7 +276,6 @@ Note.prototype.step = function(now) {
 
 function Background() {
   this.canvas = $('#background')[0];
-  this.playfield = $('#playfield');
   this.ctx = this.canvas.getContext('2d');
   $(window).resize(this.resize.bind(this)).resize();
 }
@@ -288,14 +293,12 @@ Background.prototype.link = function(color, targets) {
   this.ctx.strokeStyle = color;
   this.ctx.globalAlpha = 1;
 
-  var offset = this.playfield.offset();
-  var position = targets[0].elt.position();
-
+  var offset = targets[0].offset();
   this.ctx.beginPath();
-  this.ctx.moveTo(position.left + offset.left, position.top + offset.top);
+  this.ctx.moveTo(offset.left, offset.top);
   for (var i = 1; i < targets.length; ++i) {
-    position = targets[i].elt.position();
-    this.ctx.lineTo(position.left + offset.left, position.top + offset.top);
+    offset = targets[i].offset();
+    this.ctx.lineTo(offset.left, offset.top);
   }
   this.ctx.stroke();
 };
@@ -304,9 +307,9 @@ Background.prototype.duration = function(color, start, end) {
   this.ctx.strokeStyle = color;
   this.ctx.globalAlpha = 0.5;
 
-  var offset = this.playfield.offset();
-  var width = this.playfield.width();
-  var height = this.playfield.height();
+  var offset = $('#playfield').offset();
+  var width = $('#playfield').width();
+  var height = $('#playfield').height();
 
   this.ctx.beginPath();
   this.ctx.moveTo(start.x * width + offset.left, start.y * height + offset.top);
