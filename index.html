@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <!-- TODO add a meta tag for device scale -->
+  <meta name="viewport" content="width=device-width, user-scalable=no">
   <title>DeflecNote</title>
   <script src="jquery.min.js"></script>
   <script src="test.js"></script>
@@ -115,6 +115,7 @@ function Target(base, link) {
   this.elt = $('<div>').addClass('target')
       .addClass(this.top ? 'p1' : 'p2')
       // TODO make sure to cover all needed events
+      // TODO long-tap doesn't dtrt on mobile
       .mousedown(this.tap.bind(this))
       .mouseup(this.out.bind(this))
       .mouseout(this.out.bind(this))
