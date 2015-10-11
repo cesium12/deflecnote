@@ -26,12 +26,10 @@ body > * {
 }
 
 .p1 {
-  color: magenta;
   background-color: magenta;
 }
 
 .p2 {
-  color: cyan;
   background-color: cyan;
 }
 
@@ -71,21 +69,33 @@ body > * {
   cursor: pointer;
 }
 
+#info {
+  top: 50%;
+  left: 25%;
+  right: 25%;
+  margin-top: -21pt;
+  text-align: center;
+  color: silver;
+  font-size: 12pt;
+  line-height: 16pt;
+}
+
 .score {
-  background-color: black;
+  position: relative;
+  height: 8pt;
+  border: 2pt solid silver;
+  border-radius: 4pt;
 }
 
-.score.p1 {
-  right: 0;
-}
-
-.score.p2 {
-  left: 0;
+.bar {
+  height: 100%;
+  width: 0;
+  background-color: silver;
 }
   </style>
 </head>
 <body>
-  <section class="score p1"></section>
+  <section id="info"></section>
   <section class="glowy p2"></section>
   <section class="glowy p1"></section>
   <canvas id="background"></canvas>
@@ -225,6 +235,7 @@ Target.prototype.tap = function(evt) {
   evt.preventDefault();
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
     this.t_tap = performance.now() - origin;
+    this.score = 1; // TODO score varies based on accuracy
     this.elt.css({
       borderWidth: 10,
       margin: -(this.RADIUS + 10)
@@ -265,7 +276,7 @@ Target.prototype.end = function(now) {
         },
         duration: 200
       });
-      $('.score.p1').text(++points + ' / ' + SONG.Hard.note_count_p1);
+      info.progress(this.top, this.score);
     }
   }
 };
@@ -347,12 +358,28 @@ Background.prototype.duration = function(target, start, end) {
   this.ctx.stroke();
 };
 
-var notes = SONG.Hard.notes.slice();
+function Info() {
+  this.bar = $('<div>').addClass('bar');
+  $('#info').append(
+      SONG._metadata.song,
+      $('<div>').addClass('score').append(this.bar),
+      SONG._metadata.artist);
+  this.score = 0;
+  this.total = SONG[difficulty].note_count_p1;
+}
+Info.prototype.progress = function(top, score) {
+  if (top) { // TODO handle other player's score, somehow?
+    this.bar.css('width', 100 * (this.score += score) / this.total + '%');
+  }
+};
+
+var difficulty = 'Hard';
+var notes = SONG[difficulty].notes.slice();
 var background;
+var info;
 var insets;
 var origin;
 var alive = [];
-var points = 0;
 
 function run(now) {
   now -= origin;
@@ -377,7 +404,9 @@ $(function() {
     right: Target.prototype.RADIUS
   });
   background = new Background();
-  insets();
+  info = new Info();
+  insets = SONG[difficulty].inset_targets;
+  drawInsets();
   var songDelay = Math.max(0, -notes[0].t);
   // TODO load the music here
   origin = performance.now() + songDelay;
@@ -387,8 +416,7 @@ $(function() {
   requestAnimationFrame(run);
 });
 
-function insets() {
-  insets = SONG.Hard.inset_targets;
+function drawInsets() {
   for (var i = 0; i < insets; ++i) {
     $.each({
       p1: Target.prototype.INSET_Y,
