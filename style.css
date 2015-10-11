@@ -1,0 +1,88 @@
+body {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: black;
+  margin: 0;
+}
+
+body > * {
+  position: absolute;
+}
+
+#playfield {
+  top: 15%;
+  bottom: 15%;
+}
+
+.p1 {
+  background-color: magenta;
+}
+
+.p2 {
+  background-color: cyan;
+}
+
+.glowy {
+  height: 10%;
+  width: 100%;
+  background-image: linear-gradient(to bottom, black, black);
+}
+
+.glowy.p1 {
+  bottom: 10%;
+}
+
+.glowy.p2 {
+  top: 10%;
+}
+
+.target {
+  position: absolute;
+  border-radius: 50%;
+  border: 5px outset silver;
+}
+
+.target.p1 {
+  box-shadow: 0 0 1em magenta, 0 0 1em magenta;
+}
+
+.target.p2 {
+  box-shadow: 0 0 1em cyan, 0 0 1em cyan;
+}
+
+.target.highlight {
+  border-color: goldenrod;
+}
+
+.target.clickable {
+  cursor: pointer;
+}
+
+#info {
+  top: 50%;
+  left: 25%;
+  right: 25%;
+  margin-top: -21pt;
+  text-align: center;
+  color: silver;
+  font-family: 'Poiret One', sans-serif;
+  font-weight: bold;
+  font-size: 12pt;
+  line-height: 16pt;
+}
+
+.score {
+  position: relative;
+  height: 8pt;
+  border: 2pt solid silver;
+  border-radius: 4pt;
+}
+
+.bar {
+  height: 100%;
+  width: 0;
+  background-color: silver;
+}
