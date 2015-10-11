@@ -1,7 +1,7 @@
 "use strict";
 
 function Target(base, link) {
-  Object.assign(this, base);
+  $.extend(this, base);
   var self = this;
 
   if (link) {
@@ -65,6 +65,7 @@ function Target(base, link) {
 
 Target.prototype.RADIUS = 20;
 Target.prototype.INSET_Y = 0.75;
+Target.prototype.MARGIN = 0.08;
 Target.prototype.STYLE = {
   height: 2 * Target.prototype.RADIUS,
   width: 2 * Target.prototype.RADIUS,
@@ -92,8 +93,13 @@ Target.prototype.positionAt = function(now) {
 
 Target.prototype.step = function(now) {
   // this function is black magic; don't worry about it too much
-  if (now >= this.t_tap + this.duration) {
+  if (this.flagTap) {
+    this.t_tap = now;
+    delete this.flagTap;
+  }
+  if (this.flagOut || now >= this.t_tap + this.duration) {
     this.end(now);
+    delete this.flagOut;
   }
 
   var t_tap = 't_tap' in this ? this.t_tap : now;
@@ -104,15 +110,15 @@ Target.prototype.step = function(now) {
     top: 100 * position.y + '%',
     left: 100 * position.x + '%'
   }).toggleClass('clickable',
-      this.top && Math.abs(position.y - this.final_y) < 0.05);
+      this.top && Math.abs(position.y - this.final_y) < this.MARGIN);
   if ('inset_x' in this && position.yProgress < this.INSET_Y) {
     this.arrow.css('transform', 'rotate(' + Math.atan2(
         (this.top ? this.INSET_Y : (1 - this.INSET_Y)) - position.y,
         (this.inset_x + 0.5) / insets - position.x) + 'rad)');
   }
 
-  if ('inset_x' in this && position.yProgress > this.INSET_Y + 0.05) {
-    this.opacity = (1 - position.yProgress) / (1 - this.INSET_Y - 0.05);
+  if ('inset_x' in this && position.yProgress > this.INSET_Y + this.MARGIN) {
+    this.opacity = (1 - position.yProgress) / (1 - this.INSET_Y - this.MARGIN);
   } else if (this.is_reflect || now >= this.parent.t + this.spawn_t) {
     this.opacity = 1;
   } else if (this.link) {
@@ -135,7 +141,7 @@ Target.prototype.step = function(now) {
 Target.prototype.tap = function(evt) {
   evt.preventDefault();
   if (!('t_tap' in this) && this.elt.hasClass('clickable')) {
-    this.t_tap = performance.now() - origin;
+    this.flagTap = true;
     this.score = 1; // TODO score varies based on accuracy
     this.elt.css({
       borderWidth: 10,
@@ -146,7 +152,7 @@ Target.prototype.tap = function(evt) {
 
 Target.prototype.out = function(evt) {
   evt.preventDefault();
-  this.end(performance.now() - origin);
+  this.flagOut = true;
 };
 
 Target.prototype.move = function(evt) {

@@ -1,12 +1,12 @@
 "use strict";
 
 function Note(data) {
-  Object.assign(this, data);
+  $.extend(this, data);
   var self = this;
 
-  this.targets = [new Target(this)];
+  this.targets = [new Target(data)];
   $.each(this.linked || [], function(_, link) {
-    self.targets.push(new Target(self, link));
+    self.targets.push(new Target(data, link));
   });
 }
 

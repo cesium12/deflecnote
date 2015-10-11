@@ -50,17 +50,21 @@ $(function() {
     left: Target.prototype.RADIUS,
     right: Target.prototype.RADIUS
   });
+  $(document).on('mousedown touchstart mouseup touchend mouseleave touchmove',
+      function(evt) { evt.preventDefault(); });
   background = new Background();
   info = new Info();
   insets = SONG[difficulty].inset_targets;
   background.insets();
   var songDelay = Math.max(0, -notes[0].t);
   // TODO load the music here
-  origin = performance.now() + songDelay;
-  setTimeout(function() {
-    console.log('Start!'); // TODO start the music here
-  }, songDelay);
-  requestAnimationFrame(run);
+  requestAnimationFrame(function(now) {
+    origin = now + songDelay;
+    setTimeout(function() {
+      console.log('Start!'); // TODO start the music here
+    }, songDelay);
+    requestAnimationFrame(run);
+  });
 });
 
 function Info() {
@@ -100,6 +104,7 @@ function pulsate(now) {
       'rgba(0, 0, 0, ' + (0.60 + 0.1 * Math.cos((phase + 1/8) * 2 * Math.PI)) + ') 80%,' +
       'rgba(0, 0, 0, ' + (0.65 + 0.1 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 90%,' +
       'rgba(0, 0, 0, 1) 100%)');
+  return; // fine on desktop but causes lag on mobile
   $('.target').css('background-image', 'radial-gradient(circle,' +
       'rgba(0, 0, 0, ' + (0.10 + 0.05 * Math.cos((phase + 0/8) * 2 * Math.PI)) + ') 0%,' +
       'rgba(0, 0, 0, ' + (0.15 + 0.10 * Math.cos((phase + 3/8) * 2 * Math.PI)) + ') 40%,' +
