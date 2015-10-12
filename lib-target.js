@@ -63,7 +63,7 @@ function Target(base, link) {
   }
 }
 
-Target.prototype.RADIUS = 20;
+Target.prototype.RADIUS = $(window).width() / 50 + 15;
 Target.prototype.BORDER = 5;
 Target.prototype.INSET_Y = 0.75;
 Target.prototype.STYLE = {
