@@ -50,6 +50,11 @@ $(function() {
     left: Target.prototype.RADIUS,
     right: Target.prototype.RADIUS
   });
+  $('.glowy').css({
+    height: 2 * Target.prototype.RADIUS,
+    padding: Target.prototype.BORDER + 'px 0',
+    margin: -(Target.prototype.RADIUS + Target.prototype.BORDER) + 'px 0'
+  });
   $(document).on('mousedown touchstart mouseup touchend mouseleave touchmove',
       function(evt) { evt.preventDefault(); });
   background = new Background();

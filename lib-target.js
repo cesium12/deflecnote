@@ -64,12 +64,13 @@ function Target(base, link) {
 }
 
 Target.prototype.RADIUS = 20;
+Target.prototype.BORDER = 5;
 Target.prototype.INSET_Y = 0.75;
-Target.prototype.MARGIN = 0.08;
 Target.prototype.STYLE = {
   height: 2 * Target.prototype.RADIUS,
   width: 2 * Target.prototype.RADIUS,
-  margin: -(Target.prototype.RADIUS + 5)
+  borderWidth: Target.prototype.BORDER,
+  margin: -(Target.prototype.RADIUS + Target.prototype.BORDER)
 };
 
 Target.prototype.positionAt = function(now) {
@@ -106,19 +107,20 @@ Target.prototype.step = function(now) {
   var t_out = 't_out' in this ? this.t_out : now;
   var position = this.positionAt(t_tap + now - t_out);
   var end = position;
+  var margin = (this.RADIUS + 2 * this.BORDER) / $('#playfield').height();
   this.elt.css({
     top: 100 * position.y + '%',
     left: 100 * position.x + '%'
   }).toggleClass('clickable',
-      this.top && Math.abs(position.y - this.final_y) < this.MARGIN);
+      this.top && Math.abs(position.y - this.final_y) < margin);
   if ('inset_x' in this && position.yProgress < this.INSET_Y) {
     this.arrow.css('transform', 'rotate(' + Math.atan2(
         (this.top ? this.INSET_Y : (1 - this.INSET_Y)) - position.y,
         (this.inset_x + 0.5) / insets - position.x) + 'rad)');
   }
 
-  if ('inset_x' in this && position.yProgress > this.INSET_Y + this.MARGIN) {
-    this.opacity = (1 - position.yProgress) / (1 - this.INSET_Y - this.MARGIN);
+  if ('inset_x' in this && position.yProgress > this.INSET_Y + margin) {
+    this.opacity = (1 - position.yProgress) / (1 - this.INSET_Y - margin);
   } else if (this.is_reflect || now >= this.parent.t + this.spawn_t) {
     this.opacity = 1;
   } else if (this.link) {
@@ -144,8 +146,8 @@ Target.prototype.tap = function(evt) {
     this.flagTap = true;
     this.score = 1; // TODO score varies based on accuracy
     this.elt.css({
-      borderWidth: 10,
-      margin: -(this.RADIUS + 10)
+      borderWidth: 2 * this.BORDER,
+      margin: -(this.RADIUS + 2 * this.BORDER)
     });
   }
 };

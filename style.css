@@ -26,23 +26,22 @@ body > * {
 }
 
 .glowy {
-  height: 10%;
   width: 100%;
   background-image: linear-gradient(to bottom, black, black);
 }
 
 .glowy.p1 {
-  bottom: 10%;
+  bottom: 15%;
 }
 
 .glowy.p2 {
-  top: 10%;
+  top: 15%;
 }
 
 .target {
   position: absolute;
   border-radius: 50%;
-  border: 5px outset silver;
+  border: 0px outset silver;
 }
 
 .target.p1 {
