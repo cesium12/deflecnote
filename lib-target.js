@@ -105,9 +105,9 @@ Target.prototype.step = function(now) {
 
   var t_tap = 't_tap' in this ? this.t_tap : now;
   var t_out = 't_out' in this ? this.t_out : now;
-  var position = this.positionAt(t_tap + now - t_out);
+  var position = this.position = this.positionAt(t_tap + now - t_out);
   var end = position;
-  var margin = (this.RADIUS + 2 * this.BORDER) / $('#playfield').height();
+  var margin = (this.RADIUS + 2 * this.BORDER) / background.height;
   this.elt.css({
     top: 100 * position.y + '%',
     left: 100 * position.x + '%'
@@ -134,7 +134,7 @@ Target.prototype.step = function(now) {
     var tail = (t_out - t_tap - this.duration) * this.duration_spd +
         t_tap + now - t_out;
     end = this.positionAt(Math.min(now, Math.max(this.lastBounce, tail)));
-    background.duration(this, position, end);
+    background.duration(this, end);
   }
 
   return Math.abs(end.y - 0.5) < 1;
@@ -162,8 +162,9 @@ Target.prototype.move = function(evt) {
   var touches = evt.originalEvent.targetTouches;
   var offset = this.offset();
   for (var i = 0; i < touches.length; ++i) {
-    if (Math.abs(offset.left - touches[i].clientX) <= this.RADIUS &&
-        Math.abs(offset.top - touches[i].clientY) <= this.RADIUS) {
+    var dx = offset.left - touches[i].clientX;
+    var dy = offset.top - touches[i].clientY;
+    if (Math.sqrt(dx * dx + dy * dy) <= this.RADIUS + 2 * this.BORDER) {
       return;
     }
   }
@@ -193,11 +194,10 @@ Target.prototype.end = function(now) {
   }
 };
 
-Target.prototype.offset = function() {
-  var offset = $('#playfield').offset();
-  var position = this.elt.position();
+Target.prototype.offset = function(position) {
+  position = position || this.position;
   return {
-    left: offset.left + position.left,
-    top: offset.top + position.top
+    left: background.offset.left + position.x * background.width,
+    top: background.offset.top + position.y * background.height
   };
 };

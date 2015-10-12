@@ -11,6 +11,9 @@ Background.prototype.resize = function() {
   this.canvas.width = $(window).width();
   this.ctx.shadowColor = 'white';
   this.ctx.lineCap = 'round';
+  this.height = $('#playfield').height();
+  this.width = $('#playfield').width();
+  this.offset = $('#playfield').offset();
 };
 
 Background.prototype.clear = function() {
@@ -22,8 +25,8 @@ Background.prototype.link = function(color, targets) {
   this.ctx.strokeStyle = color;
   this.ctx.globalAlpha = 1;
 
-  var offset = targets[0].offset();
   this.ctx.beginPath();
+  var offset = targets[0].offset();
   this.ctx.moveTo(offset.left, offset.top);
   for (var i = 1; i < targets.length; ++i) {
     offset = targets[i].offset();
@@ -32,18 +35,16 @@ Background.prototype.link = function(color, targets) {
   this.ctx.stroke();
 };
 
-Background.prototype.duration = function(target, start, end) {
+Background.prototype.duration = function(target, end) {
   this.ctx.lineWidth = 2 * (Target.prototype.RADIUS + 5);
   this.ctx.strokeStyle = target.color;
   this.ctx.globalAlpha = Math.max(0, target.opacity) / 2;
 
-  var offset = $('#playfield').offset();
-  var width = $('#playfield').width();
-  var height = $('#playfield').height();
-
   this.ctx.beginPath();
-  this.ctx.moveTo(start.x * width + offset.left, start.y * height + offset.top);
-  this.ctx.lineTo(end.x * width + offset.left, end.y * height + offset.top);
+  var offset = target.offset();
+  this.ctx.moveTo(offset.left, offset.top);
+  offset = target.offset(end);
+  this.ctx.lineTo(offset.left, offset.top);
   this.ctx.stroke();
 };
 
